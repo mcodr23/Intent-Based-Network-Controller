@@ -3,38 +3,41 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Devices | Intent Controller</title>
+  <title>Devices | IBN Controller</title>
   <link rel="stylesheet" href="/frontend/css/style.css" />
 </head>
 <body>
   <script src="/frontend/js/app.js"></script>
   <script>
     if (!requireAuth()) throw new Error('auth required');
-    renderShell('Device Inventory & Discovery', 'devices');
+    renderShell('Device Inventory', 'devices');
 
     async function loadDevices() {
       const content = document.getElementById('content');
       content.innerHTML = `
         <div class="card">
-          <h3>Start Discovery</h3>
-          <p>Scan subnet or leave blank to use default mock catalog.</p>
+          <div class="card-header">
+            <h3>🔍 Network Discovery</h3>
+          </div>
+          <p>Scan a subnet or use the default mock device catalog to discover network endpoints.</p>
           <div id="discoveryMsg" class="message" style="display:none"></div>
-          <form id="discoveryForm" class="grid two">
+          <form id="discoveryForm" style="display:grid; grid-template-columns:1fr auto; gap:12px; align-items:end;">
             <div>
               <label>Subnet (optional)</label>
               <input id="subnet" placeholder="10.0.0.0/29" />
             </div>
-            <div style="display:flex; align-items:end;">
-              <button type="submit">Run Discovery</button>
-            </div>
+            <button type="submit">Run Discovery</button>
           </form>
         </div>
+
         <div class="card">
-          <h3>Discovered Devices</h3>
+          <div class="card-header">
+            <h3>🖥️ Discovered Devices</h3>
+          </div>
           <table>
             <thead>
               <tr>
-                <th>ID</th><th>Hostname</th><th>Mgmt IP</th><th>Vendor</th><th>Model</th><th>Group</th><th>Last Seen</th>
+                <th>ID</th><th>Hostname</th><th>Mgmt IP</th><th>Vendor</th><th>Model</th><th>Group</th><th>Status</th><th>Last Seen</th>
               </tr>
             </thead>
             <tbody id="devicesTable"></tbody>
@@ -42,8 +45,7 @@
         </div>
       `;
 
-      const form = document.getElementById('discoveryForm');
-      form.addEventListener('submit', async (e) => {
+      document.getElementById('discoveryForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const subnet = document.getElementById('subnet').value.trim();
         const payload = subnet ? { subnet } : {};
@@ -52,12 +54,10 @@
             method: 'POST',
             body: JSON.stringify(payload),
           });
-          showMessage('discoveryMsg', `Scanned ${result.scanned} targets. Discovered ${result.discovered} devices.`, 'success');
-          document.getElementById('discoveryMsg').style.display = 'block';
+          showMessage('discoveryMsg', `Scanned ${result.scanned} targets — Discovered ${result.discovered} devices`, 'success');
           renderDeviceRows(result.devices);
         } catch (err) {
           showMessage('discoveryMsg', err.message, 'error');
-          document.getElementById('discoveryMsg').style.display = 'block';
         }
       });
 
@@ -65,20 +65,20 @@
         const devices = await apiFetch('/devices');
         renderDeviceRows(devices);
       } catch (err) {
-        document.getElementById('devicesTable').innerHTML = `<tr><td colspan="7">${err.message}</td></tr>`;
+        document.getElementById('devicesTable').innerHTML = `<tr><td colspan="8">${err.message}</td></tr>`;
       }
     }
 
     function renderDeviceRows(devices) {
-      const tbody = document.getElementById('devicesTable');
-      tbody.innerHTML = devices.map((d) => `
+      document.getElementById('devicesTable').innerHTML = devices.map(d => `
         <tr>
           <td>${d.id}</td>
-          <td>${d.hostname}</td>
-          <td>${d.management_ip}</td>
-          <td>${d.vendor || '-'}</td>
-          <td>${d.hardware_model || '-'}</td>
-          <td>${d.device_group}</td>
+          <td style="color:var(--text-primary); font-weight:600;">${d.hostname}</td>
+          <td><code style="font-family:'JetBrains Mono',monospace; font-size:12px; background:var(--bg-input); padding:2px 8px; border-radius:6px;">${d.management_ip}</code></td>
+          <td>${d.vendor || '—'}</td>
+          <td>${d.hardware_model || '—'}</td>
+          <td><span class="badge info">${d.device_group}</span></td>
+          <td><span class="badge ok">${d.status || 'up'}</span></td>
           <td>${formatDate(d.last_seen)}</td>
         </tr>
       `).join('');

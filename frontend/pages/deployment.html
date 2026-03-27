@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Deployment | Intent Controller</title>
+  <title>Deployment | IBN Controller</title>
   <link rel="stylesheet" href="/frontend/css/style.css" />
 </head>
 <body>
@@ -16,29 +16,39 @@
       const content = document.getElementById('content');
       content.innerHTML = `
         <div class="card">
-          <h3>Deploy Policy</h3>
+          <div class="card-header">
+            <h3>🚀 Deploy Policy</h3>
+          </div>
+          <p>Select a policy and deploy it to target devices. The system handles retries, rollback, and logging.</p>
           <div id="deployMsg" class="message" style="display:none"></div>
-          <form id="deployForm" class="grid two">
+          <form id="deployForm" style="display:grid; grid-template-columns:1fr auto auto; gap:12px; align-items:end;">
             <div>
-              <label>Policy</label>
+              <label>Select Policy</label>
               <select id="policySelect"></select>
             </div>
-            <div style="display:flex;align-items:end;gap:8px;">
-              <button type="submit">Start Deployment</button>
-              <button type="button" class="ghost" id="refreshBtn">Refresh</button>
-            </div>
+            <button type="submit">Start Deployment</button>
+            <button type="button" class="ghost" id="refreshBtn">↻ Refresh</button>
           </form>
         </div>
 
         <div class="card">
-          <h3>Deployment Details</h3>
-          <div id="deploymentInfo" class="small">Select or run a deployment to view details.</div>
+          <div class="card-header">
+            <h3>📊 Deployment Details</h3>
+          </div>
+          <div id="deploymentInfo">
+            <div class="empty-state">
+              <div class="empty-icon">🚀</div>
+              <p>Select or run a deployment to view details</p>
+            </div>
+          </div>
         </div>
 
         <div class="card">
-          <h3>Deployment Logs</h3>
+          <div class="card-header">
+            <h3>📝 Deployment Logs</h3>
+          </div>
           <table>
-            <thead><tr><th>Time</th><th>Level</th><th>Device ID</th><th>Message</th></tr></thead>
+            <thead><tr><th>Time</th><th>Level</th><th>Device</th><th>Message</th></tr></thead>
             <tbody id="logTable"></tbody>
           </table>
         </div>
@@ -65,7 +75,7 @@
         select.innerHTML = '<option value="">No policies found</option>';
         return;
       }
-      select.innerHTML = policies.map(p => `<option value="${p.id}">${p.id} - ${p.name}</option>`).join('');
+      select.innerHTML = policies.map(p => `<option value="${p.id}">${p.id} — ${p.name} (${p.action})</option>`).join('');
     }
 
     async function onDeploy(e) {
@@ -75,31 +85,45 @@
       try {
         const result = await apiFetch(`/deploy/${policyId}`, { method: 'POST', body: '{}' });
         currentDeploymentId = result.deployment.id;
-        showMessage('deployMsg', result.message, 'success');
-        document.getElementById('deployMsg').style.display = 'block';
+        showMessage('deployMsg', result.message, result.deployment.status === 'success' ? 'success' : 'error');
         await loadDeployment(currentDeploymentId);
       } catch (err) {
         showMessage('deployMsg', err.message, 'error');
-        document.getElementById('deployMsg').style.display = 'block';
       }
     }
 
     async function refreshCurrent() {
-      if (currentDeploymentId) {
-        await loadDeployment(currentDeploymentId);
-      }
+      if (currentDeploymentId) await loadDeployment(currentDeploymentId);
     }
 
     async function loadDeployment(deploymentId) {
       const deployment = await apiFetch(`/deployments/${deploymentId}`);
+      const statusClass = deployment.status === 'success' ? 'ok' : deployment.status === 'failed' ? 'err' : 'warn';
+
       document.getElementById('deploymentInfo').innerHTML = `
-        <div><strong>ID:</strong> ${deployment.id}</div>
-        <div><strong>Status:</strong> <span class="badge ${deployment.status === 'success' ? 'ok' : deployment.status === 'failed' ? 'err' : 'warn'}">${deployment.status}</span></div>
-        <div><strong>Rollback:</strong> ${deployment.rollback_performed}</div>
-        <div><strong>Retries:</strong> ${deployment.retry_count}</div>
-        <div><strong>Summary:</strong> ${deployment.summary || '-'}</div>
-        <div><strong>Started:</strong> ${formatDate(deployment.started_at)}</div>
-        <div><strong>Ended:</strong> ${formatDate(deployment.ended_at)}</div>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:16px;">
+          <div class="kpi">
+            <span class="label">Deployment ID</span>
+            <span class="value" style="font-size:20px;">#${deployment.id}</span>
+          </div>
+          <div class="kpi">
+            <span class="label">Status</span>
+            <span class="value" style="font-size:16px;"><span class="badge ${statusClass}">${deployment.status}</span></span>
+          </div>
+          <div class="kpi">
+            <span class="label">Retries</span>
+            <span class="value" style="font-size:20px;">${deployment.retry_count}</span>
+          </div>
+          <div class="kpi">
+            <span class="label">Rollback</span>
+            <span class="value" style="font-size:16px;"><span class="badge ${deployment.rollback_performed ? 'warn' : 'ok'}">${deployment.rollback_performed ? 'Yes' : 'No'}</span></span>
+          </div>
+        </div>
+        <div style="margin-top:16px; padding:12px 16px; background:var(--bg-input); border-radius:var(--radius-md); border:1px solid var(--border);">
+          <span class="small">Summary:</span>
+          <div style="color:var(--text-primary); font-size:13px; margin-top:4px;">${deployment.summary || '—'}</div>
+          <div class="small" style="margin-top:8px;">Started: ${formatDate(deployment.started_at)} · Ended: ${formatDate(deployment.ended_at)}</div>
+        </div>
       `;
 
       const logs = await apiFetch(`/deployments/${deploymentId}/logs`);
@@ -107,8 +131,8 @@
         <tr>
           <td>${formatDate(log.created_at)}</td>
           <td><span class="badge ${log.level === 'ERROR' ? 'err' : log.level === 'WARN' ? 'warn' : 'ok'}">${log.level}</span></td>
-          <td>${log.device_id || '-'}</td>
-          <td>${log.message}</td>
+          <td>${log.device_id || '—'}</td>
+          <td style="color:var(--text-primary);">${log.message}</td>
         </tr>
       `).join('');
     }

@@ -3,28 +3,68 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dashboard | Intent Controller</title>
+  <title>Dashboard | IBN Controller</title>
   <link rel="stylesheet" href="/frontend/css/style.css" />
 </head>
 <body>
   <script src="/frontend/js/app.js"></script>
   <script>
     if (!requireAuth()) throw new Error('auth required');
-    renderShell('Dashboard Home', 'home');
+    renderShell('Dashboard', 'home');
 
     async function loadDashboard() {
       const content = document.getElementById('content');
       content.innerHTML = `
-        <div class="grid two">
-          <div class="kpi"><span class="label">Devices</span><span class="value" id="kpiDevices">-</span></div>
-          <div class="kpi"><span class="label">Policies</span><span class="value" id="kpiPolicies">-</span></div>
-          <div class="kpi"><span class="label">Compliant Devices</span><span class="value" id="kpiCompliance">-</span></div>
-          <div class="kpi"><span class="label">Avg Health Score</span><span class="value" id="kpiHealth">-</span></div>
+        <div class="grid four">
+          <div class="kpi">
+            <span class="label">Devices</span>
+            <span class="value" id="kpiDevices">—</span>
+            <span class="kpi-detail">Discovered endpoints</span>
+          </div>
+          <div class="kpi">
+            <span class="label">Policies</span>
+            <span class="value" id="kpiPolicies">—</span>
+            <span class="kpi-detail">Active intents</span>
+          </div>
+          <div class="kpi">
+            <span class="label">Compliance</span>
+            <span class="value" id="kpiCompliance">—</span>
+            <span class="kpi-detail">Compliant / Total</span>
+          </div>
+          <div class="kpi">
+            <span class="label">Avg Health</span>
+            <span class="value" id="kpiHealth">—</span>
+            <span class="kpi-detail">Network health score</span>
+          </div>
         </div>
+
+        <div class="workflow-banner">
+          <h3 style="margin-bottom:4px;">IBN Lifecycle</h3>
+          <p class="small" style="margin:0 0 8px;">The system follows the complete Intent-Based Networking control loop</p>
+          <div class="workflow-steps">
+            <span class="workflow-step">🔍 Discover</span>
+            <span class="workflow-arrow">→</span>
+            <span class="workflow-step">🗺️ Model</span>
+            <span class="workflow-arrow">→</span>
+            <span class="workflow-step">📋 Define</span>
+            <span class="workflow-arrow">→</span>
+            <span class="workflow-step">🚀 Deploy</span>
+            <span class="workflow-arrow">→</span>
+            <span class="workflow-step">📡 Monitor</span>
+            <span class="workflow-arrow">→</span>
+            <span class="workflow-step">🛡️ Enforce</span>
+          </div>
+        </div>
+
         <div class="card">
-          <h3>System Workflow</h3>
-          <p>Discover -> Model -> Define -> Deploy -> Monitor -> Enforce</p>
-          <div class="small">Use the left navigation to walk through each module in your demo.</div>
+          <div class="card-header">
+            <h3>Quick Actions</h3>
+          </div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <a href="/frontend/pages/devices.html" class="btn-primary" style="text-decoration:none; padding:10px 18px; border-radius:12px; font-weight:600; font-size:13px; background:var(--accent-gradient); color:#fff;">🖥️ Discover Devices</a>
+            <a href="/frontend/pages/policies.html" class="btn-primary" style="text-decoration:none; padding:10px 18px; border-radius:12px; font-weight:600; font-size:13px; background:linear-gradient(135deg, #f59e0b, #f97316); color:#fff;">📋 Create Policy</a>
+            <a href="/frontend/pages/compliance.html" class="btn-primary" style="text-decoration:none; padding:10px 18px; border-radius:12px; font-weight:600; font-size:13px; background:linear-gradient(135deg, #10b981, #059669); color:#fff;">🛡️ Check Compliance</a>
+          </div>
         </div>
       `;
 
@@ -38,8 +78,8 @@
 
         const compliant = compliance.filter(c => !c.drift_detected).length;
         const avgHealth = telemetry.length
-          ? (telemetry.reduce((sum, t) => sum + t.health_score, 0) / telemetry.length).toFixed(2)
-          : '0.00';
+          ? (telemetry.reduce((sum, t) => sum + t.health_score, 0) / telemetry.length).toFixed(1)
+          : '0.0';
 
         document.getElementById('kpiDevices').textContent = devices.length;
         document.getElementById('kpiPolicies').textContent = policies.length;

@@ -3,33 +3,40 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Telemetry | Intent Controller</title>
+  <title>Telemetry | IBN Controller</title>
   <link rel="stylesheet" href="/frontend/css/style.css" />
 </head>
 <body>
   <script src="/frontend/js/app.js"></script>
   <script>
     if (!requireAuth()) throw new Error('auth required');
-    renderShell('Telemetry & Health Monitoring', 'telemetry');
+    renderShell('Telemetry & Health', 'telemetry');
 
     async function init() {
       const content = document.getElementById('content');
       content.innerHTML = `
         <div class="card">
-          <h3>Latest Device Telemetry</h3>
-          <button id="refreshTel" class="ghost">Refresh</button>
+          <div class="card-header">
+            <h3>📡 Latest Device Telemetry</h3>
+            <button id="refreshTel" class="ghost">↻ Refresh</button>
+          </div>
+          <p>Real-time health metrics collected every 20 seconds. Health score: 100 − (CPU×0.35) − (MEM×0.30) − errors − drops.</p>
           <table style="margin-top:12px;">
-            <thead><tr><th>Device</th><th>CPU %</th><th>Memory %</th><th>Errors</th><th>Drops</th><th>Health</th><th>Collected</th><th>History</th></tr></thead>
+            <thead><tr><th>Device</th><th>CPU %</th><th>Memory %</th><th>Errors</th><th>Drops</th><th>Health Score</th><th>Collected</th><th>History</th></tr></thead>
             <tbody id="telemetryTable"></tbody>
           </table>
         </div>
 
         <div class="card">
-          <h3>Device Telemetry History</h3>
-          <table>
-            <thead><tr><th>Time</th><th>CPU</th><th>Memory</th><th>Errors</th><th>Drops</th><th>Health</th></tr></thead>
-            <tbody id="historyTable"></tbody>
-          </table>
+          <div class="card-header">
+            <h3>📈 Device History</h3>
+          </div>
+          <div id="historyContainer">
+            <div class="empty-state">
+              <div class="empty-icon">📈</div>
+              <p>Click "View" on a device to see its telemetry history</p>
+            </div>
+          </div>
         </div>
       `;
 
@@ -39,32 +46,43 @@
 
     async function refreshLatest() {
       const latest = await apiFetch('/telemetry');
-      document.getElementById('telemetryTable').innerHTML = latest.map(t => `
-        <tr>
-          <td>${t.hostname} (#${t.device_id})</td>
-          <td>${t.cpu_usage}</td>
-          <td>${t.memory_usage}</td>
-          <td>${t.packet_errors}</td>
-          <td>${t.packet_drops}</td>
-          <td><span class="badge ${t.health_score >= 75 ? 'ok' : t.health_score >= 50 ? 'warn' : 'err'}">${t.health_score}</span></td>
-          <td>${formatDate(t.collected_at)}</td>
-          <td><button class="secondary" onclick="loadHistory(${t.device_id})">View</button></td>
-        </tr>
-      `).join('');
+      document.getElementById('telemetryTable').innerHTML = latest.map(t => {
+        const healthClass = t.health_score >= 75 ? 'ok' : t.health_score >= 50 ? 'warn' : 'err';
+        return `
+          <tr>
+            <td style="font-weight:600; color:var(--text-primary);">${t.hostname} <span class="small">#${t.device_id}</span></td>
+            <td><span class="badge ${t.cpu_usage > 70 ? 'err' : t.cpu_usage > 40 ? 'warn' : 'ok'}">${t.cpu_usage}%</span></td>
+            <td><span class="badge ${t.memory_usage > 80 ? 'err' : t.memory_usage > 50 ? 'warn' : 'ok'}">${t.memory_usage}%</span></td>
+            <td>${t.packet_errors}</td>
+            <td>${t.packet_drops}</td>
+            <td><span class="badge ${healthClass}" style="font-size:13px; padding:4px 12px;">${t.health_score}</span></td>
+            <td>${formatDate(t.collected_at)}</td>
+            <td><button class="ghost" style="padding:6px 10px; font-size:12px;" onclick="loadHistory(${t.device_id}, '${t.hostname}')">View</button></td>
+          </tr>
+        `;
+      }).join('');
     }
 
-    async function loadHistory(deviceId) {
+    async function loadHistory(deviceId, hostname) {
       const history = await apiFetch(`/telemetry/${deviceId}`);
-      document.getElementById('historyTable').innerHTML = history.map(h => `
-        <tr>
-          <td>${formatDate(h.collected_at)}</td>
-          <td>${h.cpu_usage}</td>
-          <td>${h.memory_usage}</td>
-          <td>${h.packet_errors}</td>
-          <td>${h.packet_drops}</td>
-          <td>${h.health_score}</td>
-        </tr>
-      `).join('');
+      document.getElementById('historyContainer').innerHTML = `
+        <div style="margin-bottom:12px; font-weight:600; color:var(--text-primary);">History for ${hostname} (#${deviceId})</div>
+        <table>
+          <thead><tr><th>Time</th><th>CPU</th><th>Memory</th><th>Errors</th><th>Drops</th><th>Health</th></tr></thead>
+          <tbody>
+            ${history.map(h => `
+              <tr>
+                <td>${formatDate(h.collected_at)}</td>
+                <td>${h.cpu_usage}%</td>
+                <td>${h.memory_usage}%</td>
+                <td>${h.packet_errors}</td>
+                <td>${h.packet_drops}</td>
+                <td><span class="badge ${h.health_score >= 75 ? 'ok' : h.health_score >= 50 ? 'warn' : 'err'}">${h.health_score}</span></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
     }
 
     init();

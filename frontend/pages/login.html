@@ -3,40 +3,46 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Login | Intent Controller</title>
+  <title>Login | IBN Controller</title>
   <link rel="stylesheet" href="/frontend/css/style.css" />
 </head>
 <body>
-  <div class="login-wrap card">
-    <h1>Network Intent Controller</h1>
-    <p>Login to manage discovery, policy deployment, compliance and assurance.</p>
-    <div id="msg" class="message" style="display:none"></div>
+  <div class="login-wrap">
+    <div class="login-card">
+      <div class="login-header">
+        <div class="login-logo">⚡</div>
+        <h1>IBN Controller</h1>
+        <p>Intent-Based Network Automation Platform</p>
+      </div>
 
-    <form id="loginForm">
-      <label>Username</label>
-      <input id="username" value="admin" required />
-      <label>Password</label>
-      <input id="password" type="password" value="admin123" required />
-      <button type="submit">Login</button>
-    </form>
+      <div id="msg" class="message" style="display:none"></div>
 
-    <hr style="margin: 16px 0; border: none; border-top:1px solid rgba(13,27,42,.12);" />
+      <form id="loginForm">
+        <label>Username</label>
+        <input id="username" value="admin" required autocomplete="username" />
+        <label>Password</label>
+        <input id="password" type="password" value="admin123" required autocomplete="current-password" />
+        <button type="submit">Sign In</button>
+      </form>
 
-    <h3>Create Demo User</h3>
-    <form id="registerForm">
-      <label>Username</label>
-      <input id="newUsername" placeholder="engineer1" required />
-      <label>Email</label>
-      <input id="newEmail" type="email" placeholder="engineer1@example.com" required />
-      <label>Password</label>
-      <input id="newPassword" type="password" value="engineer123" required />
-      <label>Role</label>
-      <select id="newRole">
-        <option>Network Engineer</option>
-        <option>Viewer</option>
-      </select>
-      <button type="submit" class="secondary">Register</button>
-    </form>
+      <hr class="login-divider" />
+
+      <div class="login-section-title">Create Demo Account</div>
+      <form id="registerForm">
+        <label>Username</label>
+        <input id="newUsername" placeholder="engineer1" required />
+        <label>Email</label>
+        <input id="newEmail" type="email" placeholder="engineer1@example.com" required />
+        <label>Password</label>
+        <input id="newPassword" type="password" value="engineer123" required />
+        <label>Role</label>
+        <select id="newRole">
+          <option>Network Engineer</option>
+          <option>Viewer</option>
+        </select>
+        <button type="submit" class="secondary">Register</button>
+      </form>
+    </div>
   </div>
 
   <script src="/frontend/js/app.js"></script>
@@ -92,7 +98,7 @@
           if (!r.ok) throw new Error(payload.detail || 'Registration failed');
           return payload;
         });
-        notify('User registered. You can now login with that account.', 'success');
+        notify('Account created successfully. You can now sign in.', 'success');
       } catch (err) {
         notify(err.message, 'error');
       }

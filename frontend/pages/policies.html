@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Policies | Intent Controller</title>
+  <title>Policies | IBN Controller</title>
   <link rel="stylesheet" href="/frontend/css/style.css" />
 </head>
 <body>
@@ -17,39 +17,59 @@
       content.innerHTML = `
         <div class="grid two">
           <div class="card">
-            <h3>Create Intent</h3>
+            <div class="card-header">
+              <h3>📋 Create Intent</h3>
+            </div>
+            <p>Define a business-level network intent. The system translates it into device-specific configurations.</p>
             <div id="policyMsg" class="message" style="display:none"></div>
             <form id="intentForm">
               <label>Policy Name</label>
-              <input id="name" required placeholder="Guest Isolation" />
+              <input id="name" required placeholder="e.g. Guest Isolation Policy" />
               <label>Description</label>
-              <textarea id="description" placeholder="Deny guest to corporate communication"></textarea>
-              <label>Source Group</label>
-              <select id="source_group">
-                <option>guest</option><option>corporate</option><option>edge</option><option>branch</option>
-              </select>
-              <label>Destination Group</label>
-              <select id="destination_group">
-                <option>corporate</option><option>guest</option><option>edge</option><option>branch</option>
-              </select>
-              <label>Action</label>
-              <select id="action"><option value="deny">deny</option><option value="allow">allow</option></select>
-              <label>Scope</label>
-              <input id="scope" value="campus" />
+              <textarea id="description" placeholder="Deny guest VLAN traffic towards corporate network"></textarea>
+              <div class="grid two">
+                <div>
+                  <label>Source Group</label>
+                  <select id="source_group">
+                    <option>guest</option><option>corporate</option><option>edge</option><option>branch</option>
+                  </select>
+                </div>
+                <div>
+                  <label>Destination Group</label>
+                  <select id="destination_group">
+                    <option>corporate</option><option>guest</option><option>edge</option><option>branch</option>
+                  </select>
+                </div>
+              </div>
+              <div class="grid two">
+                <div>
+                  <label>Action</label>
+                  <select id="action"><option value="deny">Deny</option><option value="allow">Allow</option></select>
+                </div>
+                <div>
+                  <label>Scope</label>
+                  <input id="scope" value="campus" />
+                </div>
+              </div>
               <label>VLAN ID (optional)</label>
-              <input id="vlan_id" type="number" min="1" max="4094" />
+              <input id="vlan_id" type="number" min="1" max="4094" placeholder="e.g. 30" />
               <button type="submit">Create Policy</button>
             </form>
           </div>
+
           <div class="card">
-            <h3>Intent Translation Example</h3>
-            <p class="small">Business intent is normalized into structured policy JSON with ACL rules and scope.</p>
-            <pre id="translationPreview" style="white-space: pre-wrap; font-size:0.82rem; background:#fff; border:1px solid rgba(13,27,42,.14); padding:10px; border-radius:10px;"></pre>
+            <div class="card-header">
+              <h3>🔄 Intent Translation Preview</h3>
+            </div>
+            <p>When a policy is created, the business intent is normalized into structured JSON with ACL rules.</p>
+            <pre id="translationPreview" style="min-height:200px;">{ "hint": "Create a policy to see the translation..." }</pre>
           </div>
         </div>
 
         <div class="card">
-          <h3>Policies</h3>
+          <div class="card-header">
+            <h3>📜 All Policies</h3>
+          </div>
           <table>
             <thead><tr><th>ID</th><th>Name</th><th>Intent</th><th>Action</th><th>Scope</th><th>Created</th><th>Deploy</th></tr></thead>
             <tbody id="policyTable"></tbody>
@@ -75,13 +95,11 @@
             method: 'POST',
             body: JSON.stringify(payload),
           });
-          showMessage('policyMsg', `Policy ${policy.name} created (ID ${policy.id}).`, 'success');
-          document.getElementById('policyMsg').style.display = 'block';
+          showMessage('policyMsg', `Policy "${policy.name}" created (ID ${policy.id})`, 'success');
           document.getElementById('translationPreview').textContent = JSON.stringify(policy.structured_policy_json, null, 2);
           await refreshPolicyTable();
         } catch (err) {
           showMessage('policyMsg', err.message, 'error');
-          document.getElementById('policyMsg').style.display = 'block';
         }
       });
 
@@ -90,15 +108,20 @@
 
     async function refreshPolicyTable() {
       const policies = await apiFetch('/policies');
-      document.getElementById('policyTable').innerHTML = policies.map((p) => `
+      const tbody = document.getElementById('policyTable');
+      if (!policies.length) {
+        tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No policies created yet</td></tr>';
+        return;
+      }
+      tbody.innerHTML = policies.map(p => `
         <tr>
           <td>${p.id}</td>
-          <td>${p.name}</td>
-          <td>${p.source_group} -> ${p.destination_group}</td>
+          <td style="font-weight:600; color:var(--text-primary);">${p.name}</td>
+          <td><code style="font-family:'JetBrains Mono',monospace; font-size:12px;">${p.source_group} → ${p.destination_group}</code></td>
           <td><span class="badge ${p.action === 'allow' ? 'ok' : 'err'}">${p.action}</span></td>
           <td>${p.scope}</td>
           <td>${formatDate(p.created_at)}</td>
-          <td><button class="secondary" onclick="quickDeploy(${p.id})">Deploy</button></td>
+          <td><button class="secondary" style="padding:6px 12px; font-size:12px;" onclick="quickDeploy(${p.id})">🚀 Deploy</button></td>
         </tr>
       `).join('');
     }

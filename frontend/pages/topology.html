@@ -3,27 +3,33 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Topology | Intent Controller</title>
+  <title>Topology | IBN Controller</title>
   <link rel="stylesheet" href="/frontend/css/style.css" />
 </head>
 <body>
   <script src="/frontend/js/app.js"></script>
   <script>
     if (!requireAuth()) throw new Error('auth required');
-    renderShell('Topology Discovery', 'topology');
+    renderShell('Network Topology', 'topology');
 
     async function loadTopology() {
       const content = document.getElementById('content');
       content.innerHTML = `
         <div class="card">
-          <h3>Topology Graph (LLDP/CDP modeled)</h3>
-          <p class="small">Nodes are devices and edges are neighbor relationships discovered from simulated LLDP/CDP data.</p>
+          <div class="card-header">
+            <h3>🔗 Topology Graph</h3>
+            <span class="badge info">LLDP / CDP</span>
+          </div>
+          <p>Visual representation of network device interconnections discovered via simulated LLDP/CDP data.</p>
           <div class="topology-map" id="topologyMap"></div>
         </div>
+
         <div class="card">
-          <h3>Topology Edges</h3>
+          <div class="card-header">
+            <h3>📊 Topology Edges</h3>
+          </div>
           <table>
-            <thead><tr><th>Source</th><th>Target</th><th>Local IF</th><th>Remote IF</th><th>Protocol</th><th>Last Seen</th></tr></thead>
+            <thead><tr><th>Source</th><th>Target</th><th>Local Interface</th><th>Remote Interface</th><th>Protocol</th><th>Last Seen</th></tr></thead>
             <tbody id="edgesTable"></tbody>
           </table>
         </div>
@@ -42,14 +48,14 @@
       const byId = Object.fromEntries(topo.nodes.map(n => [n.id, n]));
       const map = document.getElementById('topologyMap');
       if (!topo.edges.length) {
-        map.innerHTML = '<div class="small">No topology edges discovered yet.</div>';
+        map.innerHTML = '<div class="empty-state"><div class="empty-icon">🔗</div><p>No topology edges discovered yet. Run discovery first.</p></div>';
         return;
       }
 
       map.innerHTML = topo.edges.map(edge => `
         <div class="topology-row">
           <span class="node">${byId[edge.source_device_id]?.hostname || edge.source_device_id}</span>
-          <span class="edge">${edge.local_interface || '-'} -> ${edge.remote_interface || '-'}</span>
+          <span class="edge">${edge.local_interface || '—'} ──→ ${edge.remote_interface || '—'}</span>
           <span class="node">${byId[edge.target_device_id]?.hostname || edge.target_device_id}</span>
           <span class="badge warn">${edge.protocol}</span>
         </div>
@@ -60,11 +66,11 @@
       const byId = Object.fromEntries(topo.nodes.map(n => [n.id, n]));
       document.getElementById('edgesTable').innerHTML = topo.edges.map(edge => `
         <tr>
-          <td>${byId[edge.source_device_id]?.hostname || edge.source_device_id}</td>
-          <td>${byId[edge.target_device_id]?.hostname || edge.target_device_id}</td>
-          <td>${edge.local_interface || '-'}</td>
-          <td>${edge.remote_interface || '-'}</td>
-          <td>${edge.protocol}</td>
+          <td style="font-weight:600; color:var(--text-primary);">${byId[edge.source_device_id]?.hostname || edge.source_device_id}</td>
+          <td style="font-weight:600; color:var(--text-primary);">${byId[edge.target_device_id]?.hostname || edge.target_device_id}</td>
+          <td><code style="font-family:'JetBrains Mono',monospace; font-size:12px;">${edge.local_interface || '—'}</code></td>
+          <td><code style="font-family:'JetBrains Mono',monospace; font-size:12px;">${edge.remote_interface || '—'}</code></td>
+          <td><span class="badge warn">${edge.protocol}</span></td>
           <td>${formatDate(edge.last_seen)}</td>
         </tr>
       `).join('');

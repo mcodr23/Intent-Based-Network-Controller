@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Compliance | Intent Controller</title>
+  <title>Compliance | IBN Controller</title>
   <link rel="stylesheet" href="/frontend/css/style.css" />
 </head>
 <body>
@@ -16,12 +16,16 @@
       const content = document.getElementById('content');
       content.innerHTML = `
         <div class="card">
-          <h3>Compliance Status</h3>
-          <p>Compares intended config vs live config and detects drift.</p>
+          <div class="card-header">
+            <h3>🛡️ Compliance Status</h3>
+            <button id="refreshComp" class="ghost">↻ Refresh</button>
+          </div>
+          <p>Compares intended (desired) config against live (current) config using SHA-256 hashing to detect unauthorized changes.</p>
           <div id="compMsg" class="message" style="display:none"></div>
-          <button id="refreshComp" class="ghost">Refresh Compliance</button>
           <table style="margin-top:12px;">
-            <thead><tr><th>Device ID</th><th>Status</th><th>Drift</th><th>Last Checked</th><th>Details</th><th>Remediate</th></tr></thead>
+            <thead>
+              <tr><th>Device</th><th>Status</th><th>Drift</th><th>Last Checked</th><th>Drift Details</th><th>Action</th></tr>
+            </thead>
             <tbody id="compTable"></tbody>
           </table>
         </div>
@@ -36,29 +40,29 @@
         const list = await apiFetch('/compliance');
         document.getElementById('compTable').innerHTML = list.map(item => `
           <tr>
-            <td>${item.device_id}</td>
+            <td style="font-weight:600; color:var(--text-primary);">Device #${item.device_id}</td>
             <td><span class="badge ${item.status === 'compliant' ? 'ok' : 'err'}">${item.status}</span></td>
-            <td>${item.drift_detected}</td>
+            <td><span class="badge ${item.drift_detected ? 'err' : 'ok'}">${item.drift_detected ? 'Drift Detected' : 'Clean'}</span></td>
             <td>${formatDate(item.last_checked)}</td>
-            <td><pre style="max-width:380px; white-space:pre-wrap; margin:0">${(item.drift_details || '').slice(0, 220)}</pre></td>
-            <td>${item.drift_detected ? `<button onclick="remediate(${item.device_id})" class="secondary">Remediate</button>` : '-'}</td>
+            <td><pre style="max-width:320px; margin:0; font-size:11px; padding:8px; max-height:80px; overflow:auto;">${(item.drift_details || 'No drift').slice(0, 300)}</pre></td>
+            <td>${item.drift_detected
+              ? `<button onclick="remediate(${item.device_id})" class="secondary" style="padding:6px 12px; font-size:12px;">🔧 Remediate</button>`
+              : '<span class="small">—</span>'
+            }</td>
           </tr>
         `).join('');
       } catch (err) {
         showMessage('compMsg', err.message, 'error');
-        document.getElementById('compMsg').style.display = 'block';
       }
     }
 
     async function remediate(deviceId) {
       try {
         const status = await apiFetch(`/remediate/${deviceId}`, { method: 'POST', body: '{}' });
-        showMessage('compMsg', `Device ${deviceId} remediated. Status: ${status.status}`, 'success');
-        document.getElementById('compMsg').style.display = 'block';
+        showMessage('compMsg', `Device #${deviceId} remediated successfully. Status: ${status.status}`, 'success');
         await refreshTable();
       } catch (err) {
         showMessage('compMsg', err.message, 'error');
-        document.getElementById('compMsg').style.display = 'block';
       }
     }
 

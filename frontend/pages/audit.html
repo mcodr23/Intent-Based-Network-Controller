@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Audit Logs | Intent Controller</title>
+  <title>Audit Logs | IBN Controller</title>
   <link rel="stylesheet" href="/frontend/css/style.css" />
 </head>
 <body>
@@ -16,10 +16,12 @@
       const content = document.getElementById('content');
       content.innerHTML = `
         <div class="card">
-          <h3>Audit Logs</h3>
-          <p>Every API action is recorded with user, path, and status code.</p>
+          <div class="card-header">
+            <h3>📝 Audit Logs</h3>
+            <button id="refreshAudit" class="ghost">↻ Refresh</button>
+          </div>
+          <p>Every API interaction is recorded with user identity, action, resource, and HTTP status code.</p>
           <div id="auditMsg" class="message" style="display:none"></div>
-          <button id="refreshAudit" class="ghost">Refresh</button>
           <table style="margin-top:12px;">
             <thead><tr><th>Timestamp</th><th>User</th><th>Role</th><th>Action</th><th>Resource</th><th>Status</th></tr></thead>
             <tbody id="auditTable"></tbody>
@@ -34,19 +36,21 @@
     async function refreshAudit() {
       try {
         const logs = await apiFetch('/audit');
-        document.getElementById('auditTable').innerHTML = logs.map(log => `
-          <tr>
-            <td>${formatDate(log.timestamp)}</td>
-            <td>${log.username || '-'}</td>
-            <td>${log.role || '-'}</td>
-            <td>${log.action}</td>
-            <td>${log.resource}</td>
-            <td>${log.status_code || '-'}</td>
-          </tr>
-        `).join('');
+        document.getElementById('auditTable').innerHTML = logs.map(log => {
+          const statusClass = log.status_code >= 400 ? 'err' : log.status_code >= 300 ? 'warn' : 'ok';
+          return `
+            <tr>
+              <td>${formatDate(log.timestamp)}</td>
+              <td style="font-weight:600; color:var(--text-primary);">${log.username || '—'}</td>
+              <td><span class="badge info">${log.role || '—'}</span></td>
+              <td><code style="font-family:'JetBrains Mono',monospace; font-size:12px; background:var(--bg-input); padding:2px 8px; border-radius:6px;">${log.action}</code></td>
+              <td><code style="font-family:'JetBrains Mono',monospace; font-size:12px;">${log.resource}</code></td>
+              <td><span class="badge ${statusClass}">${log.status_code || '—'}</span></td>
+            </tr>
+          `;
+        }).join('');
       } catch (err) {
         showMessage('auditMsg', err.message, 'error');
-        document.getElementById('auditMsg').style.display = 'block';
       }
     }
 
