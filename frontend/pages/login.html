@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login | Intent Controller</title>
+  <link rel="stylesheet" href="/frontend/css/style.css" />
+</head>
+<body>
+  <div class="login-wrap card">
+    <h1>Network Intent Controller</h1>
+    <p>Login to manage discovery, policy deployment, compliance and assurance.</p>
+    <div id="msg" class="message" style="display:none"></div>
+
+    <form id="loginForm">
+      <label>Username</label>
+      <input id="username" value="admin" required />
+      <label>Password</label>
+      <input id="password" type="password" value="admin123" required />
+      <button type="submit">Login</button>
+    </form>
+
+    <hr style="margin: 16px 0; border: none; border-top:1px solid rgba(13,27,42,.12);" />
+
+    <h3>Create Demo User</h3>
+    <form id="registerForm">
+      <label>Username</label>
+      <input id="newUsername" placeholder="engineer1" required />
+      <label>Email</label>
+      <input id="newEmail" type="email" placeholder="engineer1@example.com" required />
+      <label>Password</label>
+      <input id="newPassword" type="password" value="engineer123" required />
+      <label>Role</label>
+      <select id="newRole">
+        <option>Network Engineer</option>
+        <option>Viewer</option>
+      </select>
+      <button type="submit" class="secondary">Register</button>
+    </form>
+  </div>
+
+  <script src="/frontend/js/app.js"></script>
+  <script>
+    const msg = document.getElementById('msg');
+    function notify(text, type = 'success') {
+      msg.style.display = 'block';
+      msg.className = `message ${type}`;
+      msg.textContent = text;
+    }
+
+    if (getToken()) {
+      window.location.href = '/frontend/pages/dashboard.html';
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        const data = await fetch('/api/login', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            username: document.getElementById('username').value,
+            password: document.getElementById('password').value,
+          })
+        }).then(async r => {
+          const payload = await r.json();
+          if (!r.ok) throw new Error(payload.detail || 'Login failed');
+          return payload;
+        });
+
+        setAuth(data);
+        window.location.href = '/frontend/pages/dashboard.html';
+      } catch (err) {
+        notify(err.message, 'error');
+      }
+    });
+
+    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        await fetch('/api/register', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            username: document.getElementById('newUsername').value,
+            email: document.getElementById('newEmail').value,
+            password: document.getElementById('newPassword').value,
+            role: document.getElementById('newRole').value,
+          })
+        }).then(async r => {
+          const payload = await r.json();
+          if (!r.ok) throw new Error(payload.detail || 'Registration failed');
+          return payload;
+        });
+        notify('User registered. You can now login with that account.', 'success');
+      } catch (err) {
+        notify(err.message, 'error');
+      }
+    });
+  </script>
+</body>
+</html>

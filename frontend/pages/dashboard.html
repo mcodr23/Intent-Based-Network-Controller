@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard | Intent Controller</title>
+  <link rel="stylesheet" href="/frontend/css/style.css" />
+</head>
+<body>
+  <script src="/frontend/js/app.js"></script>
+  <script>
+    if (!requireAuth()) throw new Error('auth required');
+    renderShell('Dashboard Home', 'home');
+
+    async function loadDashboard() {
+      const content = document.getElementById('content');
+      content.innerHTML = `
+        <div class="grid two">
+          <div class="kpi"><span class="label">Devices</span><span class="value" id="kpiDevices">-</span></div>
+          <div class="kpi"><span class="label">Policies</span><span class="value" id="kpiPolicies">-</span></div>
+          <div class="kpi"><span class="label">Compliant Devices</span><span class="value" id="kpiCompliance">-</span></div>
+          <div class="kpi"><span class="label">Avg Health Score</span><span class="value" id="kpiHealth">-</span></div>
+        </div>
+        <div class="card">
+          <h3>System Workflow</h3>
+          <p>Discover -> Model -> Define -> Deploy -> Monitor -> Enforce</p>
+          <div class="small">Use the left navigation to walk through each module in your demo.</div>
+        </div>
+      `;
+
+      try {
+        const [devices, policies, compliance, telemetry] = await Promise.all([
+          apiFetch('/devices'),
+          apiFetch('/policies'),
+          apiFetch('/compliance'),
+          apiFetch('/telemetry'),
+        ]);
+
+        const compliant = compliance.filter(c => !c.drift_detected).length;
+        const avgHealth = telemetry.length
+          ? (telemetry.reduce((sum, t) => sum + t.health_score, 0) / telemetry.length).toFixed(2)
+          : '0.00';
+
+        document.getElementById('kpiDevices').textContent = devices.length;
+        document.getElementById('kpiPolicies').textContent = policies.length;
+        document.getElementById('kpiCompliance').textContent = `${compliant}/${compliance.length}`;
+        document.getElementById('kpiHealth').textContent = avgHealth;
+      } catch (err) {
+        content.insertAdjacentHTML('beforeend', `<div class="message error">${err.message}</div>`);
+      }
+    }
+
+    loadDashboard();
+  </script>
+</body>
+</html>

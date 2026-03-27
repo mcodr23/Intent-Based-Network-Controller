@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Devices | Intent Controller</title>
+  <link rel="stylesheet" href="/frontend/css/style.css" />
+</head>
+<body>
+  <script src="/frontend/js/app.js"></script>
+  <script>
+    if (!requireAuth()) throw new Error('auth required');
+    renderShell('Device Inventory & Discovery', 'devices');
+
+    async function loadDevices() {
+      const content = document.getElementById('content');
+      content.innerHTML = `
+        <div class="card">
+          <h3>Start Discovery</h3>
+          <p>Scan subnet or leave blank to use default mock catalog.</p>
+          <div id="discoveryMsg" class="message" style="display:none"></div>
+          <form id="discoveryForm" class="grid two">
+            <div>
+              <label>Subnet (optional)</label>
+              <input id="subnet" placeholder="10.0.0.0/29" />
+            </div>
+            <div style="display:flex; align-items:end;">
+              <button type="submit">Run Discovery</button>
+            </div>
+          </form>
+        </div>
+        <div class="card">
+          <h3>Discovered Devices</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th><th>Hostname</th><th>Mgmt IP</th><th>Vendor</th><th>Model</th><th>Group</th><th>Last Seen</th>
+              </tr>
+            </thead>
+            <tbody id="devicesTable"></tbody>
+          </table>
+        </div>
+      `;
+
+      const form = document.getElementById('discoveryForm');
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const subnet = document.getElementById('subnet').value.trim();
+        const payload = subnet ? { subnet } : {};
+        try {
+          const result = await apiFetch('/discovery/start', {
+            method: 'POST',
+            body: JSON.stringify(payload),
+          });
+          showMessage('discoveryMsg', `Scanned ${result.scanned} targets. Discovered ${result.discovered} devices.`, 'success');
+          document.getElementById('discoveryMsg').style.display = 'block';
+          renderDeviceRows(result.devices);
+        } catch (err) {
+          showMessage('discoveryMsg', err.message, 'error');
+          document.getElementById('discoveryMsg').style.display = 'block';
+        }
+      });
+
+      try {
+        const devices = await apiFetch('/devices');
+        renderDeviceRows(devices);
+      } catch (err) {
+        document.getElementById('devicesTable').innerHTML = `<tr><td colspan="7">${err.message}</td></tr>`;
+      }
+    }
+
+    function renderDeviceRows(devices) {
+      const tbody = document.getElementById('devicesTable');
+      tbody.innerHTML = devices.map((d) => `
+        <tr>
+          <td>${d.id}</td>
+          <td>${d.hostname}</td>
+          <td>${d.management_ip}</td>
+          <td>${d.vendor || '-'}</td>
+          <td>${d.hardware_model || '-'}</td>
+          <td>${d.device_group}</td>
+          <td>${formatDate(d.last_seen)}</td>
+        </tr>
+      `).join('');
+    }
+
+    loadDevices();
+  </script>
+</body>
+</html>

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Policies | Intent Controller</title>
+  <link rel="stylesheet" href="/frontend/css/style.css" />
+</head>
+<body>
+  <script src="/frontend/js/app.js"></script>
+  <script>
+    if (!requireAuth()) throw new Error('auth required');
+    renderShell('Intent & Policy Engine', 'policy');
+
+    async function loadPolicies() {
+      const content = document.getElementById('content');
+      content.innerHTML = `
+        <div class="grid two">
+          <div class="card">
+            <h3>Create Intent</h3>
+            <div id="policyMsg" class="message" style="display:none"></div>
+            <form id="intentForm">
+              <label>Policy Name</label>
+              <input id="name" required placeholder="Guest Isolation" />
+              <label>Description</label>
+              <textarea id="description" placeholder="Deny guest to corporate communication"></textarea>
+              <label>Source Group</label>
+              <select id="source_group">
+                <option>guest</option><option>corporate</option><option>edge</option><option>branch</option>
+              </select>
+              <label>Destination Group</label>
+              <select id="destination_group">
+                <option>corporate</option><option>guest</option><option>edge</option><option>branch</option>
+              </select>
+              <label>Action</label>
+              <select id="action"><option value="deny">deny</option><option value="allow">allow</option></select>
+              <label>Scope</label>
+              <input id="scope" value="campus" />
+              <label>VLAN ID (optional)</label>
+              <input id="vlan_id" type="number" min="1" max="4094" />
+              <button type="submit">Create Policy</button>
+            </form>
+          </div>
+          <div class="card">
+            <h3>Intent Translation Example</h3>
+            <p class="small">Business intent is normalized into structured policy JSON with ACL rules and scope.</p>
+            <pre id="translationPreview" style="white-space: pre-wrap; font-size:0.82rem; background:#fff; border:1px solid rgba(13,27,42,.14); padding:10px; border-radius:10px;"></pre>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Policies</h3>
+          <table>
+            <thead><tr><th>ID</th><th>Name</th><th>Intent</th><th>Action</th><th>Scope</th><th>Created</th><th>Deploy</th></tr></thead>
+            <tbody id="policyTable"></tbody>
+          </table>
+        </div>
+      `;
+
+      document.getElementById('intentForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const vlanRaw = document.getElementById('vlan_id').value;
+        const payload = {
+          name: document.getElementById('name').value,
+          description: document.getElementById('description').value,
+          source_group: document.getElementById('source_group').value,
+          destination_group: document.getElementById('destination_group').value,
+          action: document.getElementById('action').value,
+          scope: document.getElementById('scope').value || 'global',
+          parameters: vlanRaw ? { vlan_id: Number(vlanRaw) } : {},
+        };
+
+        try {
+          const policy = await apiFetch('/intent', {
+            method: 'POST',
+            body: JSON.stringify(payload),
+          });
+          showMessage('policyMsg', `Policy ${policy.name} created (ID ${policy.id}).`, 'success');
+          document.getElementById('policyMsg').style.display = 'block';
+          document.getElementById('translationPreview').textContent = JSON.stringify(policy.structured_policy_json, null, 2);
+          await refreshPolicyTable();
+        } catch (err) {
+          showMessage('policyMsg', err.message, 'error');
+          document.getElementById('policyMsg').style.display = 'block';
+        }
+      });
+
+      await refreshPolicyTable();
+    }
+
+    async function refreshPolicyTable() {
+      const policies = await apiFetch('/policies');
+      document.getElementById('policyTable').innerHTML = policies.map((p) => `
+        <tr>
+          <td>${p.id}</td>
+          <td>${p.name}</td>
+          <td>${p.source_group} -> ${p.destination_group}</td>
+          <td><span class="badge ${p.action === 'allow' ? 'ok' : 'err'}">${p.action}</span></td>
+          <td>${p.scope}</td>
+          <td>${formatDate(p.created_at)}</td>
+          <td><button class="secondary" onclick="quickDeploy(${p.id})">Deploy</button></td>
+        </tr>
+      `).join('');
+    }
+
+    async function quickDeploy(policyId) {
+      try {
+        const result = await apiFetch(`/deploy/${policyId}`, { method: 'POST', body: '{}' });
+        alert(result.message);
+        window.location.href = `/frontend/pages/deployment.html?deployment_id=${result.deployment.id}`;
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    loadPolicies();
+  </script>
+</body>
+</html>

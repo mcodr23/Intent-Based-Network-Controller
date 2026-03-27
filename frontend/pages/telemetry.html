@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Telemetry | Intent Controller</title>
+  <link rel="stylesheet" href="/frontend/css/style.css" />
+</head>
+<body>
+  <script src="/frontend/js/app.js"></script>
+  <script>
+    if (!requireAuth()) throw new Error('auth required');
+    renderShell('Telemetry & Health Monitoring', 'telemetry');
+
+    async function init() {
+      const content = document.getElementById('content');
+      content.innerHTML = `
+        <div class="card">
+          <h3>Latest Device Telemetry</h3>
+          <button id="refreshTel" class="ghost">Refresh</button>
+          <table style="margin-top:12px;">
+            <thead><tr><th>Device</th><th>CPU %</th><th>Memory %</th><th>Errors</th><th>Drops</th><th>Health</th><th>Collected</th><th>History</th></tr></thead>
+            <tbody id="telemetryTable"></tbody>
+          </table>
+        </div>
+
+        <div class="card">
+          <h3>Device Telemetry History</h3>
+          <table>
+            <thead><tr><th>Time</th><th>CPU</th><th>Memory</th><th>Errors</th><th>Drops</th><th>Health</th></tr></thead>
+            <tbody id="historyTable"></tbody>
+          </table>
+        </div>
+      `;
+
+      document.getElementById('refreshTel').addEventListener('click', refreshLatest);
+      await refreshLatest();
+    }
+
+    async function refreshLatest() {
+      const latest = await apiFetch('/telemetry');
+      document.getElementById('telemetryTable').innerHTML = latest.map(t => `
+        <tr>
+          <td>${t.hostname} (#${t.device_id})</td>
+          <td>${t.cpu_usage}</td>
+          <td>${t.memory_usage}</td>
+          <td>${t.packet_errors}</td>
+          <td>${t.packet_drops}</td>
+          <td><span class="badge ${t.health_score >= 75 ? 'ok' : t.health_score >= 50 ? 'warn' : 'err'}">${t.health_score}</span></td>
+          <td>${formatDate(t.collected_at)}</td>
+          <td><button class="secondary" onclick="loadHistory(${t.device_id})">View</button></td>
+        </tr>
+      `).join('');
+    }
+
+    async function loadHistory(deviceId) {
+      const history = await apiFetch(`/telemetry/${deviceId}`);
+      document.getElementById('historyTable').innerHTML = history.map(h => `
+        <tr>
+          <td>${formatDate(h.collected_at)}</td>
+          <td>${h.cpu_usage}</td>
+          <td>${h.memory_usage}</td>
+          <td>${h.packet_errors}</td>
+          <td>${h.packet_drops}</td>
+          <td>${h.health_score}</td>
+        </tr>
+      `).join('');
+    }
+
+    init();
+  </script>
+</body>
+</html>

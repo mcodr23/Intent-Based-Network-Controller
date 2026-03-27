@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Deployment | Intent Controller</title>
+  <link rel="stylesheet" href="/frontend/css/style.css" />
+</head>
+<body>
+  <script src="/frontend/js/app.js"></script>
+  <script>
+    if (!requireAuth()) throw new Error('auth required');
+    renderShell('Deployment Orchestration', 'deploy');
+
+    async function init() {
+      const content = document.getElementById('content');
+      content.innerHTML = `
+        <div class="card">
+          <h3>Deploy Policy</h3>
+          <div id="deployMsg" class="message" style="display:none"></div>
+          <form id="deployForm" class="grid two">
+            <div>
+              <label>Policy</label>
+              <select id="policySelect"></select>
+            </div>
+            <div style="display:flex;align-items:end;gap:8px;">
+              <button type="submit">Start Deployment</button>
+              <button type="button" class="ghost" id="refreshBtn">Refresh</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="card">
+          <h3>Deployment Details</h3>
+          <div id="deploymentInfo" class="small">Select or run a deployment to view details.</div>
+        </div>
+
+        <div class="card">
+          <h3>Deployment Logs</h3>
+          <table>
+            <thead><tr><th>Time</th><th>Level</th><th>Device ID</th><th>Message</th></tr></thead>
+            <tbody id="logTable"></tbody>
+          </table>
+        </div>
+      `;
+
+      await loadPolicies();
+      document.getElementById('deployForm').addEventListener('submit', onDeploy);
+      document.getElementById('refreshBtn').addEventListener('click', refreshCurrent);
+
+      const params = new URLSearchParams(window.location.search);
+      const depId = params.get('deployment_id');
+      if (depId) {
+        currentDeploymentId = Number(depId);
+        await loadDeployment(currentDeploymentId);
+      }
+    }
+
+    let currentDeploymentId = null;
+
+    async function loadPolicies() {
+      const select = document.getElementById('policySelect');
+      const policies = await apiFetch('/policies');
+      if (!policies.length) {
+        select.innerHTML = '<option value="">No policies found</option>';
+        return;
+      }
+      select.innerHTML = policies.map(p => `<option value="${p.id}">${p.id} - ${p.name}</option>`).join('');
+    }
+
+    async function onDeploy(e) {
+      e.preventDefault();
+      const policyId = document.getElementById('policySelect').value;
+      if (!policyId) return;
+      try {
+        const result = await apiFetch(`/deploy/${policyId}`, { method: 'POST', body: '{}' });
+        currentDeploymentId = result.deployment.id;
+        showMessage('deployMsg', result.message, 'success');
+        document.getElementById('deployMsg').style.display = 'block';
+        await loadDeployment(currentDeploymentId);
+      } catch (err) {
+        showMessage('deployMsg', err.message, 'error');
+        document.getElementById('deployMsg').style.display = 'block';
+      }
+    }
+
+    async function refreshCurrent() {
+      if (currentDeploymentId) {
+        await loadDeployment(currentDeploymentId);
+      }
+    }
+
+    async function loadDeployment(deploymentId) {
+      const deployment = await apiFetch(`/deployments/${deploymentId}`);
+      document.getElementById('deploymentInfo').innerHTML = `
+        <div><strong>ID:</strong> ${deployment.id}</div>
+        <div><strong>Status:</strong> <span class="badge ${deployment.status === 'success' ? 'ok' : deployment.status === 'failed' ? 'err' : 'warn'}">${deployment.status}</span></div>
+        <div><strong>Rollback:</strong> ${deployment.rollback_performed}</div>
+        <div><strong>Retries:</strong> ${deployment.retry_count}</div>
+        <div><strong>Summary:</strong> ${deployment.summary || '-'}</div>
+        <div><strong>Started:</strong> ${formatDate(deployment.started_at)}</div>
+        <div><strong>Ended:</strong> ${formatDate(deployment.ended_at)}</div>
+      `;
+
+      const logs = await apiFetch(`/deployments/${deploymentId}/logs`);
+      document.getElementById('logTable').innerHTML = logs.map(log => `
+        <tr>
+          <td>${formatDate(log.created_at)}</td>
+          <td><span class="badge ${log.level === 'ERROR' ? 'err' : log.level === 'WARN' ? 'warn' : 'ok'}">${log.level}</span></td>
+          <td>${log.device_id || '-'}</td>
+          <td>${log.message}</td>
+        </tr>
+      `).join('');
+    }
+
+    init();
+  </script>
+</body>
+</html>

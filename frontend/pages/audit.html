@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Audit Logs | Intent Controller</title>
+  <link rel="stylesheet" href="/frontend/css/style.css" />
+</head>
+<body>
+  <script src="/frontend/js/app.js"></script>
+  <script>
+    if (!requireAuth()) throw new Error('auth required');
+    renderShell('Audit Trail', 'audit');
+
+    async function loadAudit() {
+      const content = document.getElementById('content');
+      content.innerHTML = `
+        <div class="card">
+          <h3>Audit Logs</h3>
+          <p>Every API action is recorded with user, path, and status code.</p>
+          <div id="auditMsg" class="message" style="display:none"></div>
+          <button id="refreshAudit" class="ghost">Refresh</button>
+          <table style="margin-top:12px;">
+            <thead><tr><th>Timestamp</th><th>User</th><th>Role</th><th>Action</th><th>Resource</th><th>Status</th></tr></thead>
+            <tbody id="auditTable"></tbody>
+          </table>
+        </div>
+      `;
+
+      document.getElementById('refreshAudit').addEventListener('click', refreshAudit);
+      await refreshAudit();
+    }
+
+    async function refreshAudit() {
+      try {
+        const logs = await apiFetch('/audit');
+        document.getElementById('auditTable').innerHTML = logs.map(log => `
+          <tr>
+            <td>${formatDate(log.timestamp)}</td>
+            <td>${log.username || '-'}</td>
+            <td>${log.role || '-'}</td>
+            <td>${log.action}</td>
+            <td>${log.resource}</td>
+            <td>${log.status_code || '-'}</td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        showMessage('auditMsg', err.message, 'error');
+        document.getElementById('auditMsg').style.display = 'block';
+      }
+    }
+
+    loadAudit();
+  </script>
+</body>
+</html>

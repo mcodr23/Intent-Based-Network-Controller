@@ -1,0 +1,26 @@
+{
+  "login": {
+    "username": "admin",
+    "password": "admin123"
+  },
+  "register": {
+    "username": "engineer1",
+    "email": "engineer1@example.com",
+    "password": "engineer123",
+    "role": "Network Engineer"
+  },
+  "discovery_start": {
+    "subnet": "10.0.0.0/29"
+  },
+  "intent_create": {
+    "name": "Guest to Corporate Isolation",
+    "description": "Block guest segment from reaching corporate VLAN",
+    "source_group": "guest",
+    "destination_group": "corporate",
+    "action": "deny",
+    "scope": "campus",
+    "parameters": {
+      "vlan_id": 30
+    }
+  }
+}
